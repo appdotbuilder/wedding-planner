@@ -1,20 +1,56 @@
 
+import { db } from '../db';
+import { budgetItemsTable } from '../db/schema';
 import { type UpdateBudgetItemInput, type BudgetItem } from '../schema';
+import { eq } from 'drizzle-orm';
 
-export async function updateBudgetItem(input: UpdateBudgetItemInput): Promise<BudgetItem> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is updating an existing budget item in the database.
-    // This allows couples to update actual costs, mark items as paid, or modify details.
-    return Promise.resolve({
-        id: input.id,
-        wedding_id: 0, // Placeholder
-        category: input.category || 'Placeholder',
-        item_name: input.item_name || 'Placeholder',
-        estimated_cost: input.estimated_cost || 0,
-        actual_cost: input.actual_cost || null,
-        paid: input.paid || false,
-        vendor: input.vendor || null,
-        notes: input.notes || null,
-        created_at: new Date() // Placeholder date
-    } as BudgetItem);
-}
+export const updateBudgetItem = async (input: UpdateBudgetItemInput): Promise<BudgetItem> => {
+  try {
+    // Build update values, only including fields that are provided
+    const updateValues: Partial<typeof budgetItemsTable.$inferInsert> = {};
+    
+    if (input.category !== undefined) {
+      updateValues.category = input.category;
+    }
+    if (input.item_name !== undefined) {
+      updateValues.item_name = input.item_name;
+    }
+    if (input.estimated_cost !== undefined) {
+      updateValues.estimated_cost = input.estimated_cost.toString();
+    }
+    if (input.actual_cost !== undefined) {
+      updateValues.actual_cost = input.actual_cost !== null ? input.actual_cost.toString() : null;
+    }
+    if (input.paid !== undefined) {
+      updateValues.paid = input.paid;
+    }
+    if (input.vendor !== undefined) {
+      updateValues.vendor = input.vendor;
+    }
+    if (input.notes !== undefined) {
+      updateValues.notes = input.notes;
+    }
+
+    // Update the budget item
+    const result = await db.update(budgetItemsTable)
+      .set(updateValues)
+      .where(eq(budgetItemsTable.id, input.id))
+      .returning()
+      .execute();
+
+    if (result.length === 0) {
+      throw new Error(`Budget item with id ${input.id} not found`);
+    }
+
+    // Convert numeric fields back to numbers before returning
+    const budgetItem = result[0];
+    return {
+      ...budgetItem,
+      estimated_cost: parseFloat(budgetItem.estimated_cost),
+      actual_cost: budgetItem.actual_cost ? parseFloat(budgetItem.actual_cost) : null
+    };
+  } catch (error) {
+    console.error('Budget item update failed:', error);
+    throw error;
+  }
+};

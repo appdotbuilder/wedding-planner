@@ -1,19 +1,32 @@
 
+import { db } from '../db';
+import { weddingsTable } from '../db/schema';
 import { type CreateWeddingInput, type Wedding } from '../schema';
 
-export async function createWedding(input: CreateWeddingInput): Promise<Wedding> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new wedding plan, persisting it in the database.
-    // This will be the main entity that groups all tasks, budget items, and guests.
-    return Promise.resolve({
-        id: 0, // Placeholder ID
+export const createWedding = async (input: CreateWeddingInput): Promise<Wedding> => {
+  try {
+    // Insert wedding record
+    const result = await db.insert(weddingsTable)
+      .values({
         title: input.title,
         bride_name: input.bride_name,
         groom_name: input.groom_name,
-        wedding_date: new Date(input.wedding_date),
+        wedding_date: input.wedding_date,
         venue: input.venue,
         description: input.description,
-        total_budget: input.total_budget,
-        created_at: new Date() // Placeholder date
-    } as Wedding);
-}
+        total_budget: input.total_budget.toString() // Convert number to string for numeric column
+      })
+      .returning()
+      .execute();
+
+    // Convert numeric fields back to numbers before returning
+    const wedding = result[0];
+    return {
+      ...wedding,
+      total_budget: parseFloat(wedding.total_budget) // Convert string back to number
+    };
+  } catch (error) {
+    console.error('Wedding creation failed:', error);
+    throw error;
+  }
+};

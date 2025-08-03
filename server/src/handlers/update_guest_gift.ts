@@ -1,23 +1,33 @@
 
+import { db } from '../db';
+import { guestsTable } from '../db/schema';
 import { type UpdateGuestGiftInput, type Guest } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export async function updateGuestGift(input: UpdateGuestGiftInput): Promise<Guest> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is updating a guest's gift information in the database.
-    // This helps couples track what gifts they received from each guest for thank-you notes.
-    return Promise.resolve({
-        id: input.id,
-        wedding_id: 0, // Placeholder
-        name: 'Placeholder Guest',
-        email: null,
-        phone: null,
-        address: null,
-        rsvp_status: 'pending',
-        plus_one: false,
-        dietary_restrictions: null,
+  try {
+    // Update guest gift information
+    const result = await db.update(guestsTable)
+      .set({
         gift_description: input.gift_description,
-        gift_value: input.gift_value,
-        table_number: null,
-        created_at: new Date() // Placeholder date
-    } as Guest);
+        gift_value: input.gift_value ? input.gift_value.toString() : null
+      })
+      .where(eq(guestsTable.id, input.id))
+      .returning()
+      .execute();
+
+    if (result.length === 0) {
+      throw new Error(`Guest with id ${input.id} not found`);
+    }
+
+    // Convert numeric fields back to numbers before returning
+    const guest = result[0];
+    return {
+      ...guest,
+      gift_value: guest.gift_value ? parseFloat(guest.gift_value) : null
+    };
+  } catch (error) {
+    console.error('Guest gift update failed:', error);
+    throw error;
+  }
 }

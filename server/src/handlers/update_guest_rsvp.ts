@@ -1,23 +1,40 @@
 
+import { db } from '../db';
+import { guestsTable } from '../db/schema';
 import { type UpdateGuestRsvpInput, type Guest } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export async function updateGuestRsvp(input: UpdateGuestRsvpInput): Promise<Guest> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is updating a guest's RSVP status and dietary restrictions.
-    // This is typically used when guests respond to wedding invitations.
-    return Promise.resolve({
-        id: input.id,
-        wedding_id: 0, // Placeholder
-        name: 'Placeholder Guest',
-        email: null,
-        phone: null,
-        address: null,
-        rsvp_status: input.rsvp_status,
-        plus_one: false,
-        dietary_restrictions: input.dietary_restrictions || null,
-        gift_description: null,
-        gift_value: null,
-        table_number: null,
-        created_at: new Date() // Placeholder date
-    } as Guest);
+  try {
+    // Build update object with only provided fields
+    const updateData: any = {
+      rsvp_status: input.rsvp_status
+    };
+
+    // Only include dietary_restrictions if it's provided in the input
+    if (input.dietary_restrictions !== undefined) {
+      updateData.dietary_restrictions = input.dietary_restrictions;
+    }
+
+    // Update guest record
+    const result = await db.update(guestsTable)
+      .set(updateData)
+      .where(eq(guestsTable.id, input.id))
+      .returning()
+      .execute();
+
+    if (result.length === 0) {
+      throw new Error(`Guest with id ${input.id} not found`);
+    }
+
+    // Convert numeric fields back to numbers before returning
+    const guest = result[0];
+    return {
+      ...guest,
+      gift_value: guest.gift_value ? parseFloat(guest.gift_value) : null
+    };
+  } catch (error) {
+    console.error('Guest RSVP update failed:', error);
+    throw error;
+  }
 }

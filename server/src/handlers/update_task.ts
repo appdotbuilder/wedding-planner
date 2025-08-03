@@ -1,19 +1,47 @@
 
+import { db } from '../db';
+import { tasksTable } from '../db/schema';
 import { type UpdateTaskInput, type Task } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export async function updateTask(input: UpdateTaskInput): Promise<Task> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is updating an existing task in the database.
-    // This allows couples to mark tasks as complete, update details, or change priorities.
-    return Promise.resolve({
-        id: input.id,
-        wedding_id: 0, // Placeholder
-        title: input.title || 'Placeholder',
-        description: input.description || null,
-        due_date: input.due_date ? new Date(input.due_date) : null,
-        completed: input.completed || false,
-        priority: input.priority || 'medium',
-        category: input.category || null,
-        created_at: new Date() // Placeholder date
-    } as Task);
+  try {
+    // Build the update object with only provided fields
+    const updateData: any = {};
+    
+    if (input.title !== undefined) {
+      updateData.title = input.title;
+    }
+    if (input.description !== undefined) {
+      updateData.description = input.description;
+    }
+    if (input.due_date !== undefined) {
+      updateData.due_date = input.due_date;
+    }
+    if (input.completed !== undefined) {
+      updateData.completed = input.completed;
+    }
+    if (input.priority !== undefined) {
+      updateData.priority = input.priority;
+    }
+    if (input.category !== undefined) {
+      updateData.category = input.category;
+    }
+
+    // Update the task
+    const result = await db.update(tasksTable)
+      .set(updateData)
+      .where(eq(tasksTable.id, input.id))
+      .returning()
+      .execute();
+
+    if (result.length === 0) {
+      throw new Error(`Task with id ${input.id} not found`);
+    }
+
+    return result[0];
+  } catch (error) {
+    console.error('Task update failed:', error);
+    throw error;
+  }
 }
